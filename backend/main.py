@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .database import engine, Base, get_db
 from .models import model
+from backend.ai_service import analyze_memo_with_ai
 
 # 우리가 만든 부품들을 가져옵니다.
 from .database import Base, engine, get_db
@@ -34,4 +35,35 @@ def create_memo_endpoint(memo: schema.MemoCreate, db: Session = Depends(get_db))
     """
     사용자가 메모 원문을 보내면 DB에 저장하는 창구입니다.
     """
-    return crud.create_memo(db=db, memo_data=memo)
+    db_memo = crud.create_memo(db=db, memo_data=memo)
+
+    # 이제 내부적으로 Gemini가 작동합니다.
+    ai_result = analyze_memo_with_ai(db_memo.content)
+    
+    todo_data = schema.TodoCreate(
+        task=ai_result.get("task") or "할 일 알 수 없음",
+        date=ai_result.get("date"),
+        time=ai_result.get("time")
+    )
+    crud.create_todo(db=db, todo_data=todo_data, memo_id=db_memo.id)
+    
+    return db_memo
+
+@app.delete("/todos/{todo_id}")
+def delete_todo_endpoint(todo_id: int, db: Session = Depends(get_db)):
+    success = crud.delete_todo(db, todo_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="삭제할 아이템을 찾을 수 없습니다.")
+    return {"message": f"ID {todo_id} 삭제 완료"}
+
+@app.delete("/memos/{memo_id}")
+def delete_memo_endpoint(memo_id: int, db: Session = Depends(get_db)):
+    success = crud.delete_memo(db, memo_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="삭제할 아이템을 찾을 수 없습니다.")
+    return {"message": f"ID {memo_id} 삭제 완료"}
+
+@app.delete("/all")
+def clear_database_endpoint(db: Session = Depends(get_db)):
+    crud.delete_all_data(db)
+    return {"message": "모든 데이터가 삭제되었습니다."}

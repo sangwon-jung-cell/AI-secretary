@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from ..models import model as models  # models/model.py 참조
 from ..schemas import schema as schemas  # schemas/schema.py 참조
+from sqlalchemy import text
 
 # 1. 사용자가 입력한 원문 메모 저장하기
 def create_memo(db: Session, memo_data: schemas.MemoCreate):
@@ -24,3 +25,28 @@ def create_todo(db: Session, todo_data: schemas.TodoCreate, memo_id: int):
     db.commit()
     db.refresh(db_todo)
     return db_todo
+
+# todos id별로 테이블 내용 지우기
+def delete_todo(db: Session, todo_id: int):
+    db_todo = db.query(models.Todo).filter(models.Todo.id == todo_id).first()
+    if db_todo:
+        db.delete(db_todo)
+        db.commit()
+        return True
+    return False
+
+def delete_memo(db: Session, memo_id: int):
+    db_memo = db.query(models.Memo).filter(models.Memo.id == memo_id).first()
+    if db_memo:
+        db.delete(db_memo)
+        db.commit()
+        return True
+    return False
+
+
+# 모든 memos, todos 테이블의 데이터 제거(초기화)
+def delete_all_data(db: Session):
+    # RESTART IDENTITY가 바로 "번호표를 1번부터 다시 시작하라"는 뜻입니다.
+    # CASCADE는 연결된 자식 데이터도 같이 지우라는 뜻입니다.
+    db.execute(text("TRUNCATE TABLE todos, memos RESTART IDENTITY CASCADE"))
+    db.commit()
