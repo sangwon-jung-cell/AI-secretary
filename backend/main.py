@@ -10,11 +10,22 @@ from .models import model  # models 폴더 안의 model.py
 from .schemas import schema # schemas 폴더 안의 schema.py
 from .crud import crud  # crud 폴더 안의 crud.py
 
+from fastapi.middleware.cors import CORSMiddleware # 프론트엔드 위해 추가
+
 # 1. 서버 시작 시 DB 테이블 생성
 # 이 코드가 실행되면 PostgreSQL에 memos와 todos 테이블이 생깁니다.
 model.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+# CORS 설정 추가
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # 모든 접속 허용 (개발 단계에서만!)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def read_root():

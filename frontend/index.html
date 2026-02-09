@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <title>AI 비서 - 일정 자동 관리</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f4f7f6;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+    }
+
+    input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+
+    button {
+      padding: 12px 20px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .todo-item {
+      background: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border-left: 5px solid #4CAF50;
+    }
+
+    .todo-date {
+      font-size: 0.85em;
+      color: #888;
+    }
+
+    .todo-task {
+      font-weight: bold;
+      font-size: 1.1em;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>🤖 AI 비서 일정</h1>
+
+  <div class="input-group">
+    <input type="text" id="memoInput" placeholder="예: 내일 오후 3시에 카페에서 회의">
+    <button onclick="saveMemo()">입력</button>
+  </div>
+
+  <div id="todoList">
+  </div>
+
+  <script>
+    const API_URL = "http://127.0.0.1:8000";
+
+    // 1. 할 일 목록 가져오기
+    async function fetchTodos() {
+      const response = await fetch(`${API_URL}/todos`);
+      const data = await response.json();
+      const listDiv = document.getElementById('todoList');
+      listDiv.innerHTML = '';
+
+      data.forEach(todo => {
+        listDiv.innerHTML += `
+                    <div class="todo-item">
+                        <div class="todo-date">📅 ${todo.date || '날짜 없음'} | ⏰ ${todo.time || '시간 없음'}</div>
+                        <div class="todo-task">${todo.task}</div>
+                    </div>
+                `;
+      });
+    }
+
+    // 2. 메모 저장하기
+    async function saveMemo() {
+      const input = document.getElementById('memoInput');
+      if (!input.value) return;
+
+      await fetch(`${API_URL}/memos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: input.value })
+      });
+
+      input.value = ''; // 입력창 비우기
+      fetchTodos(); // 목록 새로고침
+    }
+
+    // 초기 실행
+    fetchTodos();
+  </script>
+</body>
+
+</html>
