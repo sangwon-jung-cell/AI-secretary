@@ -50,3 +50,8 @@ def delete_all_data(db: Session):
     # CASCADE는 연결된 자식 데이터도 같이 지우라는 뜻입니다.
     db.execute(text("TRUNCATE TABLE todos, memos RESTART IDENTITY CASCADE"))
     db.commit()
+
+
+def get_todos(db: Session):
+    # .order_by()를 사용해 날짜(asc: 오름차순)와 시간 순으로 정렬합니다.
+    return db.query(models.Todo).order_by(models.Todo.date.asc(), models.Todo.time.asc()).all()

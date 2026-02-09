@@ -67,3 +67,9 @@ def delete_memo_endpoint(memo_id: int, db: Session = Depends(get_db)):
 def clear_database_endpoint(db: Session = Depends(get_db)):
     crud.delete_all_data(db)
     return {"message": "모든 데이터가 삭제되었습니다."}
+
+
+@app.get("/todos", response_model=list[schema.Todo]) # 여러 개니까 list로 감쌉니다.
+def read_todos(db: Session = Depends(get_db)):
+    todos = crud.get_todos(db)
+    return todos
