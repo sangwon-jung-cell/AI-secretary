@@ -84,3 +84,10 @@ def clear_database_endpoint(db: Session = Depends(get_db)):
 def read_todos(db: Session = Depends(get_db)):
     todos = crud.get_todos(db)
     return todos
+
+@app.patch("/todos/{todo_id}/toggle") # 일부만 수정하므로 PATCH가 적절합니다.
+def toggle_todo_status(todo_id: int, db: Session = Depends(get_db)):
+    updated_todo = crud.update_todo_status(db, todo_id)
+    if not updated_todo:
+        raise HTTPException(status_code=404, detail="할 일을 찾을 수 없습니다.")
+    return updated_todo

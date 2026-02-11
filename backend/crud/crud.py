@@ -55,3 +55,13 @@ def delete_all_data(db: Session):
 def get_todos(db: Session):
     # .order_by()를 사용해 날짜(asc: 오름차순)와 시간 순으로 정렬합니다.
     return db.query(models.Todo).order_by(models.Todo.date.asc(), models.Todo.time.asc()).all()
+
+
+def update_todo_status(db: Session, todo_id: int):
+    db_todo = db.query(models.Todo).filter(models.Todo.id == todo_id).first()
+    if db_todo:
+        db_todo.is_completed = not db_todo.is_completed  # 상태 반전
+        db.commit()
+        db.refresh(db_todo)
+        return db_todo
+    return None

@@ -36,12 +36,30 @@
     }
 
     .todo-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
       background: white;
       padding: 15px;
       margin-bottom: 10px;
       border-radius: 10px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       border-left: 5px solid #4CAF50;
+    }
+
+    .todo-content {
+      flex: 1;
+    }
+
+    .completed {
+      text-decoration: line-through;
+      color: #aaa;
+    }
+
+    .checkbox {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
     }
 
     .todo-date {
@@ -54,10 +72,40 @@
       font-size: 1.1em;
       margin-top: 5px;
     }
+
+    .del-btn {
+      background: none;
+      color: #ff6b6b;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1.2em;
+    }
+
+    #creditBoard {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: white;
+      padding: 15px 25px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      font-weight: bold;
+      font-size: 1.2em;
+      color: #4CAF50;
+      border: 2px solid #4CAF50;
+      z-index: 1000;
+      transition: transform 0.2s;
+    }
+    /* 점수가 오를 때 튕기는 효과 */
+    .score-up {
+      transform: scale(1.2);
+    }
   </style>
 </head>
 
 <body>
+  <div id="creditBoard">🏆 Credit: <span id="currentScore">0</span></div>
   <h1>🤖 AI 비서 일정</h1>
 
   <div class="input-group">
@@ -65,28 +113,57 @@
     <button onclick="saveMemo()">입력</button>
   </div>
 
-  <div id="todoList">
-  </div>
+  <div id="todoList"></div>
 
   <script>
     const API_URL = "http://127.0.0.1:8000";
 
     // 1. 할 일 목록 가져오기
     async function fetchTodos() {
-      const response = await fetch(`${API_URL}/todos`);
-      const data = await response.json();
-      const listDiv = document.getElementById('todoList');
-      listDiv.innerHTML = '';
+      try {
+        const response = await fetch(`${API_URL}/todos`);
+        const data = await response.json();
+        const listDiv = document.getElementById('todoList');
+        listDiv.innerHTML = '';
 
-      data.forEach(todo => {
-        listDiv.innerHTML += `
-                    <div class="todo-item">
-                        <div class="todo-date">📅 ${todo.date || '날짜 없음'} | ⏰ ${todo.time || '시간 없음'}</div>
-                        <div class="todo-task">${todo.task}</div>
-                    </div>
-                `;
-      });
+        data.forEach(todo => {
+          // 변수명 통일: 위에서 정의한 이름과 아래 ${} 안의 이름을 맞춰야 합니다.
+          const isCompletedClass = todo.is_completed ? 'completed' : '';
+          const isCheckedAttribute = todo.is_completed ? 'checked' : '';
+
+          listDiv.innerHTML += `
+            <div class="todo-item">
+              <input type="checkbox" class="checkbox" ${isCheckedAttribute} onclick="toggleTodo(${todo.id})">
+              <div class="todo-content ${isCompletedClass}">
+                <div class="todo-date">📅 ${todo.date || '날짜 없음'} | ⏰ ${todo.time || '시간 없음'}</div>
+                <div class="todo-task">${todo.task}</div>
+              </div>
+              <button class="del-btn" onclick="deleteTodo(${todo.id})">×</button>
+            </div>
+          `;
+        });
+      } catch (e) { console.error("데이터 로드 실패:", e); }
     }
+
+    // 1. 점수 초기화 (로컬 스토리지에서 가져오기)
+      let score = parseInt(localStorage.getItem('userScore')) || 0;
+      document.getElementById('currentScore').innerText = score;
+
+      // 점수 업데이트 함수
+      function updateScore(amount) {
+        score += amount;
+        if (score < 0) score = 0; // 점수가 음수가 되지 않게
+
+        localStorage.setItem('userScore', score);
+        const scoreSpan = document.getElementById('currentScore');
+        const board = document.getElementById('creditBoard');
+
+        scoreSpan.innerText = score;
+
+        // 점수판 튕기는 애니메이션 효과
+        board.classList.add('score-up');
+        setTimeout(() => board.classList.remove('score-up'), 200);
+      }
 
     // 2. 메모 저장하기
     async function saveMemo() {
@@ -99,11 +176,32 @@
         body: JSON.stringify({ content: input.value })
       });
 
-      input.value = ''; // 입력창 비우기
-      fetchTodos(); // 목록 새로고침
+      input.value = '';
+      fetchTodos();
     }
 
-    // 초기 실행
+    // 3. 상태 토글하기, toggleTodo 함수 수정
+    async function toggleTodo(id) {
+      const response = await fetch(`${API_URL}/todos/${id}/toggle`, { method: 'PATCH' });
+      const updatedTodo = await response.json();
+
+      // 방금 체크(완료) 했다면 3점 추가, 체크 해제했다면 3점 감점
+      if (updatedTodo.is_completed) {
+        updateScore(3);
+      } else {
+        updateScore(-3);
+      }
+
+      fetchTodos();
+    }
+
+    // 4. 삭제하기 (추가됨!)
+    async function deleteTodo(id) {
+      if (!confirm("정말 삭제하시겠습니까?")) return;
+      await fetch(`${API_URL}/todos/${id}`, { method: 'DELETE' });
+      fetchTodos();
+    }
+
     fetchTodos();
   </script>
 </body>
