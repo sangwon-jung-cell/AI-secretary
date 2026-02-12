@@ -80,10 +80,19 @@ def clear_database_endpoint(db: Session = Depends(get_db)):
     return {"message": "모든 데이터가 삭제되었습니다."}
 
 
-@app.get("/todos", response_model=list[schema.Todo]) # 여러 개니까 list로 감쌉니다.
-def read_todos(db: Session = Depends(get_db)):
-    todos = crud.get_todos(db)
-    return todos
+@app.get("/todos")
+def read_todos(page: int = 1, db: Session = Depends(get_db)):
+    limit = 5
+    skip = (page - 1) * limit
+    
+    todos = crud.get_todos(db, skip=skip, limit=limit)
+    total_count = crud.get_todos_count(db)
+    
+    # 데이터와 함께 전체 페이지 수도 같이 보내줍니다.
+    return {
+        "items": todos,
+        "total_pages": (total_count + limit - 1) // limit
+    }
 
 @app.patch("/todos/{todo_id}/toggle") # 일부만 수정하므로 PATCH가 적절합니다.
 def toggle_todo_status(todo_id: int, db: Session = Depends(get_db)):

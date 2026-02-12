@@ -52,9 +52,18 @@ def delete_all_data(db: Session):
     db.commit()
 
 
-def get_todos(db: Session):
-    # .order_by()를 사용해 날짜(asc: 오름차순)와 시간 순으로 정렬합니다.
-    return db.query(models.Todo).order_by(models.Todo.date.asc(), models.Todo.time.asc()).all()
+def get_todos(db: Session, skip: int = 0, limit: int = 5):
+    # 최신순으로 정렬한 뒤, skip만큼 건너뛰고 limit만큼만 가져옵니다.
+    return db.query(models.Todo)\
+            .order_by(models.Todo.date.desc(), models.Todo.time.desc())\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+
+
+def get_todos_count(db: Session):
+    # 전체 할 일이 몇 개인지 알아야 페이지 번호를 계산할 수 있습니다.
+    return db.query(models.Todo).count()
 
 
 def update_todo_status(db: Session, todo_id: int):

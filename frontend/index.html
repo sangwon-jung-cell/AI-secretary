@@ -82,6 +82,10 @@
       font-size: 1.2em;
     }
 
+    .pagination { display: flex; justify-content: center; gap: 5px; margin-top: 20px; }
+    .page-btn { padding: 8px 12px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 4px; }
+    .page-btn.active { background: #4CAF50; color: white; border-color: #4CAF50; }
+
     #creditBoard {
       position: fixed;
       top: 20px;
@@ -96,6 +100,7 @@
       border: 2px solid #4CAF50;
       z-index: 1000;
       transition: transform 0.2s;
+      
     }
     /* 점수가 오를 때 튕기는 효과 */
     .score-up {
@@ -114,95 +119,111 @@
   </div>
 
   <div id="todoList"></div>
+  <div id="pagination" class="pagination"></div>
 
   <script>
-    const API_URL = "http://127.0.0.1:8000";
+  const API_URL = "http://127.0.0.1:8000";
+  let currentPage = 1;
 
-    // 1. 할 일 목록 가져오기
-    async function fetchTodos() {
-      try {
-        const response = await fetch(`${API_URL}/todos`);
-        const data = await response.json();
-        const listDiv = document.getElementById('todoList');
-        listDiv.innerHTML = '';
+  // 1. 점수 초기화 (로컬 스토리지)
+  let score = parseInt(localStorage.getItem('userScore')) || 0;
+  document.getElementById('currentScore').innerText = score;
 
-        data.forEach(todo => {
-          // 변수명 통일: 위에서 정의한 이름과 아래 ${} 안의 이름을 맞춰야 합니다.
-          const isCompletedClass = todo.is_completed ? 'completed' : '';
-          const isCheckedAttribute = todo.is_completed ? 'checked' : '';
+  function updateScore(amount) {
+    score += amount;
+    if (score < 0) score = 0;
+    localStorage.setItem('userScore', score);
+    document.getElementById('currentScore').innerText = score;
 
-          listDiv.innerHTML += `
-            <div class="todo-item">
-              <input type="checkbox" class="checkbox" ${isCheckedAttribute} onclick="toggleTodo(${todo.id})">
-              <div class="todo-content ${isCompletedClass}">
+    const board = document.getElementById('creditBoard');
+    board.classList.add('score-up');
+    setTimeout(() => board.classList.remove('score-up'), 200);
+  }
+
+  // 2. 할 일 목록 가져오기 (Pagination 적용)
+  async function fetchTodos(page = 1) {
+    currentPage = page;
+    try {
+      const response = await fetch(`${API_URL}/todos?page=${page}`);
+      const data = await response.json();
+
+      const listDiv = document.getElementById('todoList');
+      listDiv.innerHTML = '';
+
+      // 백엔드 응답 구조에 맞게 data.items를 사용합니다.
+      data.items.forEach(todo => {
+        const isCompletedClass = todo.is_completed ? 'completed' : '';
+        const isCheckedAttribute = todo.is_completed ? 'checked' : '';
+
+        listDiv.innerHTML += `
+        <div class="todo-item">
+            <input type="checkbox" class="checkbox" ${isCheckedAttribute} onclick="toggleTodo(${todo.id})">
+            <div class="todo-content ${isCompletedClass}">
                 <div class="todo-date">📅 ${todo.date || '날짜 없음'} | ⏰ ${todo.time || '시간 없음'}</div>
                 <div class="todo-task">${todo.task}</div>
-              </div>
-              <button class="del-btn" onclick="deleteTodo(${todo.id})">×</button>
             </div>
-          `;
-        });
-      } catch (e) { console.error("데이터 로드 실패:", e); }
-    }
-
-    // 1. 점수 초기화 (로컬 스토리지에서 가져오기)
-      let score = parseInt(localStorage.getItem('userScore')) || 0;
-      document.getElementById('currentScore').innerText = score;
-
-      // 점수 업데이트 함수
-      function updateScore(amount) {
-        score += amount;
-        if (score < 0) score = 0; // 점수가 음수가 되지 않게
-
-        localStorage.setItem('userScore', score);
-        const scoreSpan = document.getElementById('currentScore');
-        const board = document.getElementById('creditBoard');
-
-        scoreSpan.innerText = score;
-
-        // 점수판 튕기는 애니메이션 효과
-        board.classList.add('score-up');
-        setTimeout(() => board.classList.remove('score-up'), 200);
-      }
-
-    // 2. 메모 저장하기
-    async function saveMemo() {
-      const input = document.getElementById('memoInput');
-      if (!input.value) return;
-
-      await fetch(`${API_URL}/memos`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: input.value })
+            <button class="del-btn" onclick="deleteTodo(${todo.id})">×</button>
+        </div>
+      `;
       });
 
-      input.value = '';
-      fetchTodos();
+      renderPagination(data.total_pages);
+    } catch (error) {
+      console.error("데이터 로드 실패:", error);
+    }
+  }
+
+  // 3. 페이지네이션 버튼 그리기
+  function renderPagination(totalPages) {
+    const paginationDiv = document.getElementById('pagination');
+    paginationDiv.innerHTML = '';
+
+    for (let i = 1; i <= totalPages; i++) {
+      const activeClass = i === currentPage ? 'active' : '';
+      paginationDiv.innerHTML += `
+      <button class="page-btn ${activeClass}" onclick="fetchTodos(${i})">${i}</button>
+    `;
+    }
+  }
+
+  // 4. 메모 저장하기
+  async function saveMemo() {
+    const input = document.getElementById('memoInput');
+    if (!input.value) return;
+
+    await fetch(`${API_URL}/memos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: input.value })
+    });
+
+    input.value = '';
+    fetchTodos(1); // 새 메모 작성 시 1페이지로 이동
+  }
+
+  // 5. 상태 토글 및 점수 반영
+  async function toggleTodo(id) {
+    const response = await fetch(`${API_URL}/todos/${id}/toggle`, { method: 'PATCH' });
+    const updatedTodo = await response.json();
+
+    if (updatedTodo.is_completed) {
+      updateScore(3);
+    } else {
+      updateScore(-3);
     }
 
-    // 3. 상태 토글하기, toggleTodo 함수 수정
-    async function toggleTodo(id) {
-      const response = await fetch(`${API_URL}/todos/${id}/toggle`, { method: 'PATCH' });
-      const updatedTodo = await response.json();
+    fetchTodos(currentPage); // 현재 페이지 유지하며 갱신
+  }
 
-      // 방금 체크(완료) 했다면 3점 추가, 체크 해제했다면 3점 감점
-      if (updatedTodo.is_completed) {
-        updateScore(3);
-      } else {
-        updateScore(-3);
-      }
+  // 6. 삭제하기
+  async function deleteTodo(id) {
+    if (!confirm("정말 삭제하시겠습니까?")) return;
+    await fetch(`${API_URL}/todos/${id}`, { method: 'DELETE' });
+    fetchTodos(currentPage);
+  }
 
-      fetchTodos();
-    }
-
-    // 4. 삭제하기 (추가됨!)
-    async function deleteTodo(id) {
-      if (!confirm("정말 삭제하시겠습니까?")) return;
-      await fetch(`${API_URL}/todos/${id}`, { method: 'DELETE' });
-      fetchTodos();
-    }
-
-    fetchTodos();
+  // [핵심] 페이지 로드 시 첫 실행!
+  fetchTodos();
   </script>
 </body>
 
