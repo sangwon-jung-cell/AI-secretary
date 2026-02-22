@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 1. 환경 변수에서 DB 주소를 가져옵니다. 
-# 만약 .env에 없다면 기존 로컬 주소를 기본값으로 사용합니다.
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
 # 2. SQLALCHEMY 엔진 생성
