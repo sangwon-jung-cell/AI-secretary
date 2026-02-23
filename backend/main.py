@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from .database import engine, Base, get_db
 from .models import model
 from backend.ai_service import analyze_memo_with_ai
+from .routers import auth
 
 # 우리가 만든 부품들을 가져옵니다.
 from .database import Base, engine, get_db
@@ -26,6 +27,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── 라우터 등록 ───────────────────────────────────────
+app.include_router(auth.router)
 
 @app.get("/")
 def read_root():
