@@ -19,6 +19,12 @@ model.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+# Vercel 주소를 반드시 포함해야 합니다!
+origins = [
+    "http://localhost:3000",
+    "https://your-project-name.vercel.app", # 본인의 Vercel 주소 추가
+]
+
 # CORS 설정 추가
 app.add_middleware(
     CORSMiddleware,
